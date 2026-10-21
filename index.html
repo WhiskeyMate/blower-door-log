@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<link rel="manifest" href="manifest.json">
+<title>Blower Door Log</title>
+<style>
+:root{
+  --bg:#eef1f5; --card:#fff; --ink:#14202e; --mute:#5b6b7d; --line:#cdd5df;
+  --accent:#1f3a5f; --accent-ink:#fff; --good:#1b7f4b; --bad:#b3261e; --field:#f6f8fb;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:40px}
+header{background:var(--accent);color:var(--accent-ink);padding:10px 16px;display:flex;gap:10px;align-items:center;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1;min-width:120px;white-space:nowrap}
+header select{font-size:16px;padding:10px;border-radius:8px;border:0;max-width:46vw;min-height:44px}
+button{font:inherit;min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+header button{background:#2f5282;color:#fff;border-color:#4a6fa3}
+button.danger{color:var(--bad)}
+button.small{min-height:36px;padding:4px 10px;font-size:15px}
+main{max-width:1200px;margin:0 auto;padding:14px 16px;display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:900px){main{grid-template-columns:1.5fr 1fr;align-items:start} .results{position:sticky;top:70px}}
+.card{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{margin:0 0 10px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:560px){.grid.g3{grid-template-columns:repeat(3,1fr)}}
+.full{grid-column:1/-1}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
+input,select.f{width:100%;font-size:20px;padding:10px 10px;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink)}
+input:focus{outline:3px solid #8db3e6;background:#fff}
+.row{display:flex;gap:8px;align-items:end}
+.row>*{flex:1}
+.row>button{flex:none}
+.levels{display:grid;gap:8px;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:end}
+.levels .hd{font-size:12px;color:var(--mute)}
+.out{font-size:20px;padding:10px 4px;font-variant-numeric:tabular-nums;text-align:right;min-height:48px}
+.big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.stat:last-child{border:0}
+.stat span:first-child{color:var(--mute)}
+.stat b{font-size:24px;font-variant-numeric:tabular-nums}
+.extra{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;background:#fbfcfe}
+.extra .top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.extra .top .res{margin-left:auto;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.hint{font-size:13px;color:var(--mute);margin-top:6px}
+.baseline{display:flex;gap:6px;flex-wrap:wrap}
+.baseline input{width:84px;font-size:18px}
+#report{max-width:1000px;margin:0 auto;padding:14px 16px}
+#report[hidden]{display:none}
+.repbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+.repbar input[type=date]{width:auto;font-size:17px}
+.rj{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);break-inside:avoid}
+.rj h3{margin:0 0 4px;font-size:18px}
+.rj .meta{color:var(--mute);font-size:14px;margin-bottom:8px}
+.rj table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:15px}
+.rj td,.rj th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
+.rj td:first-child,.rj th:first-child{text-align:left}
+.rj .tot td{font-weight:700;border-bottom:0}
+body.reporting main,body.reporting .toast{display:none}
+body.reporting header #jobSel,body.reporting header #newBtn,body.reporting header #repBtn{display:none}
+@media print{
+  header,.repbar{display:none!important}
+  body{background:#fff}
+  .rj{box-shadow:none;border:1px solid #999}
+}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#14202e;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+svg.ic{width:18px;height:18px;vertical-align:-3px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Blower Door Log</h1>
+  <select id="jobSel" aria-label="Job"></select>
+  <button id="newBtn">+ New job</button>
+  <button id="repBtn">Report</button>
+</header>
+
+<div id="report" hidden>
+  <div class="repbar">
+    <div><label>From</label><input id="repFrom" type="date"></div>
+    <div><label>To</label><input id="repTo" type="date"></div>
+    <button id="repPrint" class="pri">Print / Save PDF</button>
+    <button id="repCsv">Download spreadsheet (CSV)</button>
+    <button id="repCopy">Copy text</button>
+    <button id="repBackup">Backup all jobs</button>
+    <button id="repRestore">Restore backup</button>
+    <input id="repFile" type="file" accept=".json,application/json" hidden>
+    <button id="repClose">Close</button>
+  </div>
+  <div id="repBody"></div>
+</div>
+
+<main>
+<div>
+  <section class="card" style="margin-bottom:14px">
+    <h2>Site</h2>
+    <div class="grid">
+      <div class="full">
+        <label for="address">Address</label>
+        <input id="address" autocomplete="off" placeholder="123 Jingle Bells Ct, Harpers Ferry">
+      </div>
+      <div class="full">
+        <button id="locBtn" class="pri small">📍 Fill address, elevation &amp; outside temp from this location</button>
+        <div class="hint" id="locStatus">Needs signal. Or type everything by hand.</div>
+      </div>
+      <div><label for="date">Date</label><input id="date" type="date"></div>
+      <div><label for="template">Template</label><input id="template" autocapitalize="characters"></div>
+      <div><label for="permit">Permit #</label><input id="permit"></div>
+      <div><label for="elev">Elevation (ft)</label><input id="elev" inputmode="decimal"></div>
+      <div><label for="ot">O/T outside °F</label><input id="ot" inputmode="decimal"></div>
+      <div><label for="it">I/T inside °F</label><input id="it" inputmode="decimal"></div>
+      <div class="full">
+        <label>Baseline readings (Pa)</label>
+        <div class="baseline" id="baseline"></div>
+        <div style="margin-top:6px"><button id="addBase" class="small">+ reading</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <h2>Floors</h2>
+    <div class="levels" id="levels"></div>
+    <div style="margin-top:10px"><button id="addLevel" class="small">+ Add floor</button></div>
+    <div class="hint">Volume = ceiling height × square feet.</div>
+  </section>
+
+  <section class="card">
+    <h2>Notes: ceiling volumes (vaults, peaks, odd shapes)</h2>
+    <div id="extras"></div>
+    <div class="chips">
+      <button class="pri" data-add="gable">+ Cathedral / peaked ceiling</button>
+      <button class="pri" data-add="tray">+ Tray ceiling</button>
+      <button data-add="tri">+ Triangle (3 sides)</button>
+      <button data-add="box">+ Box</button>
+      <button data-add="manual">+ Plain number</button>
+    </div>
+  </section>
+</div>
+
+<aside class="results">
+  <section class="card">
+    <h2>Results</h2>
+    <div class="stat"><span>Volume (cu ft)</span><b class="big" id="rVol">0</b></div>
+    <div class="stat"><span>Total SF</span><b id="rSF">0</b></div>
+    <div style="margin:12px 0">
+      <label for="cfm">CFM @ 50 Pa</label>
+      <input id="cfm" inputmode="decimal">
+    </div>
+    <div class="stat"><span>ACH50</span><b class="big" id="rACH">–</b></div>
+    <div class="stat"><span>CFM50 / sq ft floor</span><b id="rCFMsf">–</b></div>
+    <div style="margin-top:12px" class="chips">
+      <button id="copyBtn" class="pri">Copy summary</button>
+      <button id="delBtn" class="danger">Delete job</button>
+    </div>
+    <div class="hint">Saved on this tablet automatically.</div>
+  </section>
+</aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+const KEY='blowerdoor.v1';
+const $=s=>document.querySelector(s);
+const num=v=>{const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:null};
+const fmt=n=>n==null?'–':Math.round(n).toLocaleString('en-US');
+const uid=()=>Math.random().toString(36).slice(2,9);
+
+/* ---------- state ---------- */
+let db;
+try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!db||!db.jobs)db={cur:null,jobs:[]};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function newJob(){
+  return{id:uid(),address:'',date:today(),template:'A',permit:'',elev:'',ot:'',it:'70',cfm:'',
+    baseline:['0.0'],
+    levels:[{n:'Basement',h:'',sf:''},{n:'Main',h:'',sf:''},{n:'2nd floor',h:'',sf:''}],
+    extras:[]};
+}
+function job(){return db.jobs.find(j=>j.id===db.cur)}
+if(!db.jobs.length){const j=newJob();db.jobs.push(j);db.cur=j.id}
+if(!job())db.cur=db.jobs[0].id;
+
+/* ---------- math ---------- */
+function heron(a,b,c){
+  if([a,b,c].some(x=>x==null||x<=0))return null;
+  const s=(a+b+c)/2, q=s*(s-a)*(s-b)*(s-c);
+  return q>0?Math.sqrt(q):null; // null if the sides can't form a triangle
+}
+const EX={
+  gable:{name:'Cathedral / peaked ceiling',
+    f:[['L','Room length (ft)'],['W','Room width (ft)'],['H1','Floor to start of slope (ft)'],['H2','Floor to peak (ft)']],
+    calc:v=>{const{L,W,H1,H2}=v;if([L,W,H1,H2].some(x=>x==null))return null;
+      return 0.5*L*W*(H2-H1)},
+    hint:'Only the triangle above where the slope starts. The room below that is already counted in the floor volume.'},
+  tray:{name:'Tray ceiling',
+    f:[['L','Opening length (ft)'],['W','Opening width (ft)'],['l','Tray top length (ft)'],['w','Tray top width (ft)'],['R','Rise above main ceiling (ft)']],
+    calc:v=>{const{L,W,l,w,R}=v;if([L,W,l,w,R].some(x=>x==null))return null;
+      // prismatoid: bottom = opening, top = tray top, linear taper between
+      return R/6*(L*W+4*((L+l)/2)*((W+w)/2)+l*w)},
+    hint:'Measure the opening where the flat ceiling meets the tray, the top of the tray, and how far it rises. Straight (vertical) sides: enter the same size for top and opening.'},
+  tri:{name:'Triangle (3 sides) × length',
+    f:[['A','Side A (ft)'],['B','Side B (ft)'],['C','Side C (ft)'],['D','Length / depth (ft)']],
+    calc:v=>{const a=heron(v.A,v.B,v.C);return a==null||v.D==null?null:a*v.D},
+    hint:'Triangle area by Heron’s formula, times the length.',
+    extra:v=>{const a=heron(v.A,v.B,v.C);return a==null?'':'Triangle area '+a.toFixed(1)+' sq ft'}},
+  box:{name:'Box',
+    f:[['L','Length (ft)'],['W','Width (ft)'],['H','Height (ft)']],
+    calc:v=>[v.L,v.W,v.H].some(x=>x==null)?null:v.L*v.W*v.H},
+  manual:{name:'Plain number',f:[['V','Volume (cu ft)']],calc:v=>v.V}
+};
+const levelVol=l=>{const h=num(l.h),sf=num(l.sf);return h==null||sf==null?null:Math.round(h*sf)};
+function extraVol(x){
+  const def=EX[x.t];const v={};def.f.forEach(([k])=>v[k]=num(x.v[k]));
+  let r=def.calc(v);if(r==null)return null;
+  r=Math.round(r);return x.neg?-r:r;
+}
+function totals(j){
+  let vol=0,sf=0;
+  j.levels.forEach(l=>{vol+=levelVol(l)||0;sf+=num(l.sf)||0});
+  j.extras.forEach(x=>{vol+=extraVol(x)||0});
+  const cfm=num(j.cfm);
+  return{vol,sf,cfm,ach:cfm!=null&&vol>0?cfm*60/vol:null,per:cfm!=null&&sf>0?cfm/sf:null};
+}
+
+/* ---------- rendering ---------- */
+function bind(el,obj,key,after){
+  el.value=obj[key]??'';
+  el.oninput=()=>{obj[key]=el.value;save();(after||update)()};
+}
+function renderAll(){
+  const j=job();
+  // job selector
+  const sel=$('#jobSel');sel.innerHTML='';
+  db.jobs.forEach(x=>{const o=document.createElement('option');o.value=x.id;
+    o.textContent=(x.address||'(no address)')+' · '+x.date;if(x.id===db.cur)o.selected=true;sel.appendChild(o)});
+  ['address','date','template','permit','elev','ot','it','cfm'].forEach(k=>bind($('#'+k),j,k,k==='address'?renderJobSel:update));
+  renderBaseline();renderLevels();renderExtras();update();
+}
+function renderJobSel(){
+  const j=job(),o=$('#jobSel').selectedOptions[0];
+  if(o)o.textContent=(j.address||'(no address)')+' · '+j.date;
+}
+function renderBaseline(){
+  const j=job(),box=$('#baseline');box.innerHTML='';
+  j.baseline.forEach((b,i)=>{
+    const inp=document.createElement('input');inp.inputMode='decimal';inp.value=b;
+    inp.oninput=()=>{j.baseline[i]=inp.value;save()};
+    box.appendChild(inp);
+  });
+}
+function renderLevels(){
+  const j=job(),box=$('#levels');box.innerHTML='';
+  ['Floor','Ceiling ht (ft)','Square feet','Volume',''].forEach(t=>{const d=document.createElement('div');d.className='hd';d.textContent=t;box.appendChild(d)});
+  j.levels.forEach((l,i)=>{
+    const n=document.createElement('input');n.value=l.n;n.oninput=()=>{l.n=n.value;save()};
+    const h=document.createElement('input');h.inputMode='decimal';h.value=l.h;
+    const sf=document.createElement('input');sf.inputMode='decimal';sf.value=l.sf;
+    const out=document.createElement('div');out.className='out';
+    const refresh=()=>{out.textContent=fmt(levelVol(l))};
+    h.oninput=()=>{l.h=h.value;save();refresh();update()};
+    sf.oninput=()=>{l.sf=sf.value;save();refresh();update()};
+    const del=document.createElement('button');del.className='small danger';del.textContent='✕';del.title='Remove floor';
+    del.onclick=()=>{j.levels.splice(i,1);save();renderLevels();update()};
+    refresh();
+    [n,h,sf,out,del].forEach(e=>box.appendChild(e));
+  });
+}
+function renderExtras(){
+  const j=job(),box=$('#extras');box.innerHTML='';
+  if(!j.extras.length){const p=document.createElement('div');p.className='hint';p.textContent='Nothing added yet. Add a shape below for any space that isn’t a flat-ceiling floor.';box.appendChild(p)}
+  j.extras.forEach((x,i)=>{
+    const def=EX[x.t];
+    const wrap=document.createElement('div');wrap.className='extra';
+    const top=document.createElement('div');top.className='top';
+    const title=document.createElement('input');title.value=x.label||'';title.placeholder=def.name;title.style.maxWidth='55%';
+    title.oninput=()=>{x.label=title.value;save()};
+    const res=document.createElement('div');res.className='res';
+    const neg=document.createElement('button');neg.className='small';
+    const del=document.createElement('button');del.className='small danger';del.textContent='✕';del.title='Remove';
+    top.append(title,res,neg,del);wrap.appendChild(top);
+    const g=document.createElement('div');g.className='grid g3';
+    const info=document.createElement('div');info.className='hint full';
+    const refresh=()=>{
+      const r=extraVol(x);res.textContent=r==null?'–':(r<0?'−':'+')+fmt(Math.abs(r));
+      neg.textContent=x.neg?'Subtracting':'Adding';neg.style.background=x.neg?'#fde8e6':'';
+      const v={};def.f.forEach(([k])=>v[k]=num(x.v[k]));
+      info.textContent=(def.extra?def.extra(v):'')||def.hint||'';
+    };
+    def.f.forEach(([k,lab])=>{
+      const d=document.createElement('div');const l=document.createElement('label');l.textContent=lab;
+      const inp=document.createElement('input');inp.inputMode='decimal';inp.value=x.v[k]??'';
+      inp.oninput=()=>{x.v[k]=inp.value;save();refresh();update()};
+      d.append(l,inp);g.appendChild(d);
+    });
+    g.appendChild(info);wrap.appendChild(g);
+    neg.onclick=()=>{x.neg=!x.neg;save();refresh();update()};
+    del.onclick=()=>{j.extras.splice(i,1);save();renderExtras();update()};
+    refresh();box.appendChild(wrap);
+  });
+}
+function update(){
+  const j=job(),t=totals(j);
+  $('#rVol').textContent=fmt(t.vol);
+  $('#rSF').textContent=fmt(t.sf);
+  $('#rACH').textContent=t.ach==null?'–':t.ach.toFixed(2);
+  $('#rCFMsf').textContent=t.per==null?'–':t.per.toFixed(2);
+}
+
+/* ---------- actions ---------- */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),1800)}
+$('#jobSel').onchange=e=>{db.cur=e.target.value;save();renderAll()};
+$('#newBtn').onclick=()=>{
+  const prev=job(),j=newJob();
+  if(prev){j.levels=prev.levels.map(l=>({n:l.n,h:'',sf:''}))}
+  db.jobs.unshift(j);db.cur=j.id;save();renderAll();$('#address').focus();
+};
+$('#delBtn').onclick=()=>{
+  if(!confirm('Delete this job permanently?'))return;
+  db.jobs=db.jobs.filter(x=>x.id!==db.cur);
+  if(!db.jobs.length)db.jobs.push(newJob());
+  db.cur=db.jobs[0].id;save();renderAll();
+};
+$('#addLevel').onclick=()=>{job().levels.push({n:'',h:'',sf:''});save();renderLevels()};
+$('#addBase').onclick=()=>{job().baseline.push('');save();renderBaseline()};
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+  const t=b.dataset.add;job().extras.push({t,label:'',neg:false,v:{}});save();renderExtras();
+  const last=$('#extras').lastElementChild;if(last)last.scrollIntoView({block:'center',behavior:'smooth'});
+});
+$('#copyBtn').onclick=async()=>{
+  const txt=summaryText(job());
+  try{await navigator.clipboard.writeText(txt);toast('Copied')}catch(e){prompt('Copy this:',txt)}
+};
+
+/* location → address, elevation, outside temp (online only) */
+$('#locBtn').onclick=()=>{
+  const st=$('#locStatus');
+  if(!navigator.geolocation){st.textContent='Location not available here. Type values by hand.';return}
+  st.textContent='Getting location…';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const{latitude:la,longitude:lo}=pos.coords,j=job();const got=[],miss=[];
+    const jf=async u=>{const r=await fetch(u);if(!r.ok)throw 0;return r.json()};
+    try{
+      const w=await jf(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m&temperature_unit=fahrenheit`);
+      j.ot=String(Math.round(w.current.temperature_2m));got.push('temp');
+    }catch(e){miss.push('temp')}
+    try{
+      const e=await jf(`https://api.open-meteo.com/v1/elevation?latitude=${la}&longitude=${lo}`);
+      j.elev=String(Math.round(e.elevation[0]*3.28084));got.push('elevation');
+    }catch(e){miss.push('elevation')}
+    try{
+      const a=await jf(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${la}&lon=${lo}`);
+      const ad=a.address||{};
+      const street=[ad.house_number,ad.road].filter(Boolean).join(' ');
+      const city=ad.city||ad.town||ad.village||ad.hamlet||ad.county||'';
+      j.address=[street,city].filter(Boolean).join(', ')||a.display_name||'';got.push('address');
+    }catch(e){miss.push('address')}
+    save();renderAll();
+    st.textContent=(got.length?'Filled: '+got.join(', ')+'. ':'')+(miss.length?'Couldn’t get: '+miss.join(', ')+' (no signal?). ':'')+'Check the values.';
+  },err=>{st.textContent='Location blocked or unavailable ('+err.message+'). Type values by hand.'},{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+};
+
+/* ---------- reports & backup ---------- */
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function repJobs(){
+  const f=$('#repFrom').value,t=$('#repTo').value||f;
+  return db.jobs.filter(j=>(!f||j.date>=f)&&(!t||j.date<=t)).reverse()
+    .sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0); // stable: keeps entry order within a day
+}
+function jobLines(j){
+  const rows=[];
+  j.levels.forEach(l=>{if(levelVol(l)!=null)rows.push([l.n||'Floor',`${l.h} ft × ${l.sf} sf`,levelVol(l)])});
+  j.extras.forEach(x=>{const r=extraVol(x);if(r!=null)rows.push([x.label||EX[x.t].name,EX[x.t].f.map(([k,lab])=>`${lab.replace(/ \(.*\)/,'')} ${x.v[k]||'?'}`).join(', '),r])});
+  return rows;
+}
+function renderReport(){
+  const list=repJobs(),body=$('#repBody');
+  if(!list.length){body.innerHTML='<div class="hint">No jobs in this date range.</div>';return}
+  let html=`<div class="rj"><h3>Blower door report: ${esc($('#repFrom').value)}${$('#repTo').value&&$('#repTo').value!==$('#repFrom').value?' to '+esc($('#repTo').value):''}</h3><div class="meta">${list.length} job${list.length>1?'s':''}</div></div>`;
+  list.forEach(j=>{
+    const t=totals(j);
+    html+=`<div class="rj"><h3>${esc(j.address||'(no address)')}</h3>
+    <div class="meta">${esc(j.date)} · Template ${esc(j.template||'-')} · Permit ${esc(j.permit||'-')} · O/T ${esc(j.ot||'-')}°F · I/T ${esc(j.it||'-')}°F · Elev ${esc(j.elev||'-')} ft · Baseline ${esc(j.baseline.filter(Boolean).join(', ')||'-')}</div>
+    <table><tr><th>Item</th><th>Measurements</th><th>Cu ft</th></tr>`;
+    jobLines(j).forEach(r=>{html+=`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${r[2]<0?'−':''}${fmt(Math.abs(r[2]))}</td></tr>`});
+    html+=`<tr class="tot"><td>Total</td><td>${fmt(t.sf)} sf</td><td>${fmt(t.vol)}</td></tr>
+    <tr class="tot"><td>CFM50 ${esc(j.cfm||'-')}</td><td>ACH50</td><td>${t.ach==null?'–':t.ach.toFixed(2)}</td></tr></table></div>`;
+  });
+  body.innerHTML=html;
+}
+function summaryText(j){
+  const t=totals(j),L=[];
+  L.push(j.address||'(no address)');
+  L.push(`Date ${j.date}  Template ${j.template}  Permit ${j.permit||'-'}`);
+  L.push(`O/T ${j.ot||'-'}  I/T ${j.it||'-'}  Elev ${j.elev||'-'}  Baseline ${j.baseline.filter(Boolean).join(', ')||'-'}`);
+  jobLines(j).forEach(r=>L.push(`${r[0]}: ${r[1]} = ${r[2]<0?'-':''}${fmt(Math.abs(r[2]))}`));
+  L.push(`Total SF ${fmt(t.sf)}  Volume ${fmt(t.vol)}`);
+  L.push(`CFM50 ${j.cfm||'-'}  ACH50 ${t.ach==null?'-':t.ach.toFixed(2)}`);
+  return L.join('\n');
+}
+function download(name,text,type){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+const csvCell=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+function openReport(){
+  const d=job().date||today();
+  $('#repFrom').value=d;$('#repTo').value=d;
+  $('#report').hidden=false;document.body.classList.add('reporting');$('main').hidden=true;renderReport();window.scrollTo(0,0);
+}
+function closeReport(){$('#report').hidden=true;document.body.classList.remove('reporting');$('main').hidden=false}
+$('#repBtn').onclick=openReport;
+$('#repClose').onclick=closeReport;
+$('#repFrom').onchange=$('#repTo').onchange=renderReport;
+$('#repPrint').onclick=()=>window.print();
+$('#repCopy').onclick=async()=>{
+  const txt=repJobs().map(summaryText).join('\n\n----------\n\n');
+  try{await navigator.clipboard.writeText(txt);toast('Copied')}catch(e){prompt('Copy this:',txt)}
+};
+$('#repCsv').onclick=()=>{
+  const rows=[['Date','Address','Template','Permit','O/T','I/T','Elev ft','Baseline','Total SF','Volume cu ft','CFM50','ACH50']];
+  repJobs().forEach(j=>{const t=totals(j);
+    rows.push([j.date,j.address,j.template,j.permit,j.ot,j.it,j.elev,j.baseline.filter(Boolean).join(' / '),Math.round(t.sf),t.vol,j.cfm,t.ach==null?'':t.ach.toFixed(2)])});
+  download(`blower-door-${$('#repFrom').value||'all'}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv');
+};
+$('#repBackup').onclick=()=>download(`blower-door-backup-${today()}.json`,JSON.stringify(db),'application/json');
+$('#repRestore').onclick=()=>$('#repFile').click();
+$('#repFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const inc=JSON.parse(r.result);if(!inc.jobs)throw 0;
+      const have=new Set(db.jobs.map(j=>j.id));let n=0;
+      inc.jobs.forEach(j=>{if(j&&j.id&&!have.has(j.id)){db.jobs.push(j);n++}});
+      save();renderAll();renderReport();toast(`Restored ${n} job${n===1?'':'s'}`);
+    }catch(err){alert('That file isn’t a Blower Door backup.')}
+    e.target.value='';
+  };
+  r.readAsText(f);
+};
+
+if('serviceWorker' in navigator&&location.protocol!=='file:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+renderAll();
+})();
+</script>
+</body>
+</html>
