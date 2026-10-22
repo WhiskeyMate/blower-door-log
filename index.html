@@ -24,6 +24,7 @@ button.danger{color:var(--bad)}
 button.small{min-height:36px;padding:4px 10px;font-size:15px}
 main{max-width:1200px;margin:0 auto;padding:14px 16px;display:grid;gap:14px;grid-template-columns:1fr}
 @media(min-width:900px){main{grid-template-columns:1.5fr 1fr;align-items:start} .results{position:sticky;top:70px}}
+@media(max-width:899px){.results{order:-1}}
 .card{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .card h2{margin:0 0 10px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
 .grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
@@ -35,7 +36,9 @@ input:focus{outline:3px solid #8db3e6;background:#fff}
 .row{display:flex;gap:8px;align-items:end}
 .row>*{flex:1}
 .row>button{flex:none}
-.levels{display:grid;gap:8px;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:end}
+.levels{display:grid;gap:8px;grid-template-columns:1.2fr 1fr 1fr 1fr auto auto;align-items:end}
+@media(max-width:560px){.levels{grid-template-columns:1.6fr .9fr 1fr .9fr auto auto;gap:6px}.levels input:not([type=checkbox]){font-size:16px;padding:8px 6px}.levels .out{font-size:16px;padding:10px 0}.levels button.small{padding:4px 8px}}
+.levels input[type=checkbox]{width:30px;height:30px;min-height:0;margin:9px 6px;accent-color:var(--accent)}
 .levels .hd{font-size:12px;color:var(--mute)}
 .out{font-size:20px;padding:10px 4px;font-variant-numeric:tabular-nums;text-align:right;min-height:48px}
 .big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -50,6 +53,14 @@ input:focus{outline:3px solid #8db3e6;background:#fff}
 .hint{font-size:13px;color:var(--mute);margin-top:6px}
 .baseline{display:flex;gap:6px;flex-wrap:wrap}
 .baseline input{width:84px;font-size:18px}
+.sgn{display:flex;gap:6px;align-items:stretch}
+.sgn input{flex:1;min-width:0}
+.sgn button{flex:none;min-height:0;width:46px;padding:0;font-size:22px;font-weight:700;line-height:1}
+.baseline .sgn{width:138px}.baseline .sgn input{width:auto;font-size:18px}
+.lock{background:#e9edf3;color:var(--mute)}
+.corr h3,.rawh{margin:14px 0 2px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.stat.sm b{font-size:21px}
+.na{font-size:14px;font-weight:400;color:var(--mute)}
 #report{max-width:1000px;margin:0 auto;padding:14px 16px}
 #report[hidden]{display:none}
 .repbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
@@ -103,7 +114,7 @@ svg.ic{width:18px;height:18px;vertical-align:-3px}
     <div class="grid">
       <div class="full">
         <label for="address">Address</label>
-        <input id="address" autocomplete="off" placeholder="123 Jingle Bells Ct, Harpers Ferry">
+        <input id="address" autocomplete="off" placeholder="Street, suburb or town">
       </div>
       <div class="full">
         <button id="locBtn" class="pri small">📍 Fill address, elevation &amp; outside temp from this location</button>
@@ -112,15 +123,26 @@ svg.ic{width:18px;height:18px;vertical-align:-3px}
       <div><label for="date">Date</label><input id="date" type="date"></div>
       <div><label for="template">Template</label><input id="template" autocapitalize="characters"></div>
       <div><label for="permit">Permit #</label><input id="permit"></div>
-      <div><label for="elev">Elevation (ft)</label><input id="elev" inputmode="decimal"></div>
-      <div><label for="ot">O/T outside °F</label><input id="ot" inputmode="decimal"></div>
-      <div><label for="it">I/T inside °F</label><input id="it" inputmode="decimal"></div>
+      <div><label for="elev">Elevation (ft)</label><input id="elev" inputmode="decimal" data-signed></div>
+      <div><label for="ot">O/T outside °F</label><input id="ot" inputmode="decimal" data-signed></div>
+      <div><label for="it">I/T inside °F</label><input id="it" inputmode="decimal" data-signed></div>
       <div class="full">
         <label>Baseline readings (Pa)</label>
         <div class="baseline" id="baseline"></div>
         <div style="margin-top:6px"><button id="addBase" class="small">+ reading</button></div>
       </div>
     </div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <h2>Test</h2>
+    <div class="grid">
+      <div><label for="method">Test method</label><select id="method" class="f"><option value="depress">Depressurization</option><option value="press">Pressurization</option></select></div>
+      <div><label for="ttype">Test type</label><input id="ttype" class="lock" value="Single point" readonly></div>
+      <div><label for="base">Baseline P (Pa)</label><input id="base" inputmode="decimal" data-signed></div>
+      <div><label for="nexp">Pressure exponent (n)</label><input id="nexp" class="lock" value="0.61" readonly></div>
+    </div>
+    <div class="hint">Baseline P goes in the same way as the spreadsheet: for a depressurization test the correction uses 50 + baseline P (so type 1.9 where the spreadsheet has 1.9). The pressure exponent stays at 0.61 and is not used for single-point tests.</div>
   </section>
 
   <section class="card" style="margin-bottom:14px">
@@ -149,11 +171,21 @@ svg.ic{width:18px;height:18px;vertical-align:-3px}
     <div class="stat"><span>Volume (cu ft)</span><b class="big" id="rVol">0</b></div>
     <div class="stat"><span>Total SF</span><b id="rSF">0</b></div>
     <div style="margin:12px 0">
-      <label for="cfm">CFM @ 50 Pa</label>
+      <label for="cfm">Fan CFM50 (Qi), as read</label>
       <input id="cfm" inputmode="decimal">
     </div>
-    <div class="stat"><span>ACH50</span><b class="big" id="rACH">–</b></div>
-    <div class="stat"><span>CFM50 / sq ft floor</span><b id="rCFMsf">–</b></div>
+    <div class="corr">
+      <h3>Corrected for temperature &amp; altitude</h3>
+      <div class="stat"><span>Corrected ACH50</span><b class="big" id="rACHc">–</b></div>
+      <div class="stat sm"><span>Corrected ACH50 +10%</span><b id="rACHc10">–</b></div>
+      <div class="stat sm"><span>Corrected CFM50</span><b id="rCFMc">–</b></div>
+      <div class="stat sm"><span>Corrected CFM50 +10%</span><b id="rCFMc10">–</b></div>
+      <div class="stat sm"><span>ELA (in²)</span><b id="rELA">–</b></div>
+      <div class="stat sm"><span>C₀</span><b><span class="na">n/a for single point</span></b></div>
+    </div>
+    <div class="rawh">Before correction</div>
+    <div class="stat sm"><span>ACH50 (CFM as read)</span><b id="rACH">–</b></div>
+    <div class="stat sm"><span>CFM50 / sq ft floor</span><b id="rCFMsf">–</b></div>
     <div style="margin-top:12px" class="chips">
       <button id="copyBtn" class="pri">Copy summary</button>
       <button id="delBtn" class="danger">Delete job</button>
@@ -169,7 +201,7 @@ svg.ic{width:18px;height:18px;vertical-align:-3px}
 'use strict';
 const KEY='blowerdoor.v1';
 const $=s=>document.querySelector(s);
-const num=v=>{const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:null};
+const num=v=>{const n=parseFloat(String(v).replace(/\u2212/g,'-').replace(/,/g,''));return isFinite(n)?n:null};
 const fmt=n=>n==null?'–':Math.round(n).toLocaleString('en-US');
 const uid=()=>Math.random().toString(36).slice(2,9);
 
@@ -180,9 +212,9 @@ if(!db||!db.jobs)db={cur:null,jobs:[]};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function newJob(){
-  return{id:uid(),address:'',date:today(),template:'A',permit:'',elev:'',ot:'',it:'70',cfm:'',
+  return{id:uid(),address:'',date:today(),template:'A',permit:'',elev:'',ot:'',it:'70',cfm:'',method:'depress',base:'',
     baseline:['0.0'],
-    levels:[{n:'Basement',h:'',sf:''},{n:'Main',h:'',sf:''},{n:'2nd floor',h:'',sf:''}],
+    levels:[{n:'Basement',h:'',sf:'',sfc:false},{n:'Main',h:'',sf:''},{n:'2nd floor',h:'',sf:''}],
     extras:[]};
 }
 function job(){return db.jobs.find(j=>j.id===db.cur)}
@@ -223,12 +255,45 @@ function extraVol(x){
   let r=def.calc(v);if(r==null)return null;
   r=Math.round(r);return x.neg?-r:r;
 }
+/* ---------- temperature & altitude correction (single point) ----------
+   Same equations as the RESNET / ANSI 380 spreadsheet "Temperature & Altitude Correction for Envelope Leakage Test Results (v11)",
+   which uses ASTM E779-10 Appendix X1 in imperial units:  T in F, elevation E in ft, density in lb/ft3.
+     rho   = 0.07517 x (1 - 0.0035666 E / 528)^5.2553 x 528 / (T + 460)
+     mu    = b (T + 460)^0.5 / (1 + s / (T + 460)),  b = 0.002629, s = 198.7
+     rho0, mu0 = values at 68 F and sea level (NTP)
+     Depressurization:  Q0 = Qi (rho0/rho_in)^0.5 (rho_in/rho_out)
+                        corrected CFM50 = Q0 (50/(50 + baseline P))^0.65 (mu_out/mu0)^0.3 (rho_out/rho0)^0.35
+     Pressurization:    Q0 = Qi (rho0/rho_out)^0.5 (rho_out/rho_in)
+                        corrected CFM50 = Q0 (50/(50 - baseline P))^0.65 (mu_in/mu0)^0.3 (rho_in/rho0)^0.35
+     ELA (in2) = corrected CFM50 / 18.2     corrected ACH50 = corrected CFM50 x 60 / volume     "+10%" = x 1.1 */
+const CORR={
+  rho:(T,E)=>0.07517*Math.pow(1-0.0035666*E/528,5.2553)*(528/(T+460)),
+  mu:T=>0.002629*Math.sqrt(T+460)/(1+198.7/(T+460)),
+  ela:18.2,bump:1.1
+};
+function corr(j){
+  const Qi=num(j.cfm),Tin=num(j.it),Tout=num(j.ot),E=num(j.elev);
+  if(Qi==null||Tin==null||Tout==null||E==null)return null;
+  const bp=num(j.base)||0,dep=(j.method||'depress')!=='press';
+  const r0=CORR.rho(68,0),m0=CORR.mu(68),ri=CORR.rho(Tin,E),ro=CORR.rho(Tout,E);
+  let Q0,Q;
+  if(dep){
+    Q0=Qi*Math.sqrt(r0/ri)*(ri/ro);
+    Q=Q0*Math.pow(50/(50+bp),0.65)*Math.pow(CORR.mu(Tout)/m0,0.3)*Math.pow(ro/r0,0.35);
+  }else{
+    Q0=Qi*Math.sqrt(r0/ro)*(ro/ri);
+    Q=Q0*Math.pow(50/(50-bp),0.65)*Math.pow(CORR.mu(Tin)/m0,0.3)*Math.pow(ri/r0,0.35);
+  }
+  if(!isFinite(Q))return null;
+  return{cfm:Q,cfm10:Q*CORR.bump,ela:Q/CORR.ela};
+}
 function totals(j){
   let vol=0,sf=0;
-  j.levels.forEach(l=>{vol+=levelVol(l)||0;sf+=num(l.sf)||0});
+  j.levels.forEach(l=>{vol+=levelVol(l)||0;if(l.sfc!==false)sf+=num(l.sf)||0});
   j.extras.forEach(x=>{vol+=extraVol(x)||0});
-  const cfm=num(j.cfm);
-  return{vol,sf,cfm,ach:cfm!=null&&vol>0?cfm*60/vol:null,per:cfm!=null&&sf>0?cfm/sf:null};
+  const cfm=num(j.cfm),c=corr(j);
+  return{vol,sf,cfm,ach:cfm!=null&&vol>0?cfm*60/vol:null,per:cfm!=null&&sf>0?cfm/sf:null,
+    c,achc:c&&vol>0?c.cfm*60/vol:null,achc10:c&&vol>0?c.cfm10*60/vol:null};
 }
 
 /* ---------- rendering ---------- */
@@ -242,24 +307,33 @@ function renderAll(){
   const sel=$('#jobSel');sel.innerHTML='';
   db.jobs.forEach(x=>{const o=document.createElement('option');o.value=x.id;
     o.textContent=(x.address||'(no address)')+' · '+x.date;if(x.id===db.cur)o.selected=true;sel.appendChild(o)});
-  ['address','date','template','permit','elev','ot','it','cfm'].forEach(k=>bind($('#'+k),j,k,k==='address'?renderJobSel:update));
+  ['address','date','template','permit','elev','ot','it','cfm','base'].forEach(k=>bind($('#'+k),j,k,k==='address'?renderJobSel:update));
+  $('#method').value=j.method||'depress';$('#method').onchange=()=>{j.method=$('#method').value;save();update()};
   renderBaseline();renderLevels();renderExtras();update();
 }
 function renderJobSel(){
   const j=job(),o=$('#jobSel').selectedOptions[0];
   if(o)o.textContent=(j.address||'(no address)')+' · '+j.date;
 }
+/* a plus/minus button next to a number box, because phone number pads often have no minus key */
+function addSign(inp){
+  if(inp.parentNode.classList.contains('sgn'))return;
+  const w=document.createElement('div');w.className='sgn';inp.parentNode.insertBefore(w,inp);w.appendChild(inp);
+  const b=document.createElement('button');b.type='button';b.textContent='±';b.title='Switch between plus and minus';b.setAttribute('aria-label','Switch between plus and minus');
+  b.onclick=()=>{const v=inp.value.trim().replace(/\u2212/g,'-');inp.value=v.startsWith('-')?v.slice(1):(v?'-'+v:'-');inp.dispatchEvent(new Event('input'));inp.focus()};
+  w.appendChild(b);
+}
 function renderBaseline(){
   const j=job(),box=$('#baseline');box.innerHTML='';
   j.baseline.forEach((b,i)=>{
     const inp=document.createElement('input');inp.inputMode='decimal';inp.value=b;
     inp.oninput=()=>{j.baseline[i]=inp.value;save()};
-    box.appendChild(inp);
+    box.appendChild(inp);addSign(inp);
   });
 }
 function renderLevels(){
   const j=job(),box=$('#levels');box.innerHTML='';
-  ['Floor','Ceiling ht (ft)','Square feet','Volume',''].forEach(t=>{const d=document.createElement('div');d.className='hd';d.textContent=t;box.appendChild(d)});
+  ['Floor','Ceiling ht (ft)','Square feet','Volume','In SF total',''].forEach(t=>{const d=document.createElement('div');d.className='hd';d.textContent=t;box.appendChild(d)});
   j.levels.forEach((l,i)=>{
     const n=document.createElement('input');n.value=l.n;n.oninput=()=>{l.n=n.value;save()};
     const h=document.createElement('input');h.inputMode='decimal';h.value=l.h;
@@ -268,10 +342,12 @@ function renderLevels(){
     const refresh=()=>{out.textContent=fmt(levelVol(l))};
     h.oninput=()=>{l.h=h.value;save();refresh();update()};
     sf.oninput=()=>{l.sf=sf.value;save();refresh();update()};
+    const cnt=document.createElement('input');cnt.type='checkbox';cnt.checked=l.sfc!==false;cnt.title='Count this floor in the SF total';
+    cnt.onchange=()=>{l.sfc=cnt.checked;save();update()};
     const del=document.createElement('button');del.className='small danger';del.textContent='✕';del.title='Remove floor';
     del.onclick=()=>{j.levels.splice(i,1);save();renderLevels();update()};
     refresh();
-    [n,h,sf,out,del].forEach(e=>box.appendChild(e));
+    [n,h,sf,out,cnt,del].forEach(e=>box.appendChild(e));
   });
 }
 function renderExtras(){
@@ -312,6 +388,11 @@ function update(){
   $('#rVol').textContent=fmt(t.vol);
   $('#rSF').textContent=fmt(t.sf);
   $('#rACH').textContent=t.ach==null?'–':t.ach.toFixed(2);
+  $('#rACHc').textContent=t.achc==null?'–':t.achc.toFixed(1);
+  $('#rACHc10').textContent=t.achc10==null?'–':t.achc10.toFixed(1);
+  $('#rCFMc').textContent=t.c?fmt(t.c.cfm):'–';
+  $('#rCFMc10').textContent=t.c?fmt(t.c.cfm10):'–';
+  $('#rELA').textContent=t.c?t.c.ela.toFixed(1):'–';
   $('#rCFMsf').textContent=t.per==null?'–':t.per.toFixed(2);
 }
 
@@ -320,7 +401,7 @@ function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clea
 $('#jobSel').onchange=e=>{db.cur=e.target.value;save();renderAll()};
 $('#newBtn').onclick=()=>{
   const prev=job(),j=newJob();
-  if(prev){j.levels=prev.levels.map(l=>({n:l.n,h:'',sf:''}))}
+  if(prev){j.levels=prev.levels.map(l=>({n:l.n,h:'',sf:'',sfc:l.sfc}))}
   db.jobs.unshift(j);db.cur=j.id;save();renderAll();$('#address').focus();
 };
 $('#delBtn').onclick=()=>{
@@ -329,7 +410,7 @@ $('#delBtn').onclick=()=>{
   if(!db.jobs.length)db.jobs.push(newJob());
   db.cur=db.jobs[0].id;save();renderAll();
 };
-$('#addLevel').onclick=()=>{job().levels.push({n:'',h:'',sf:''});save();renderLevels()};
+$('#addLevel').onclick=()=>{job().levels.push({n:'',h:'',sf:'',sfc:true});save();renderLevels()};
 $('#addBase').onclick=()=>{job().baseline.push('');save();renderBaseline()};
 document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
   const t=b.dataset.add;job().extras.push({t,label:'',neg:false,v:{}});save();renderExtras();
@@ -392,7 +473,11 @@ function renderReport(){
     <table><tr><th>Item</th><th>Measurements</th><th>Cu ft</th></tr>`;
     jobLines(j).forEach(r=>{html+=`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${r[2]<0?'−':''}${fmt(Math.abs(r[2]))}</td></tr>`});
     html+=`<tr class="tot"><td>Total</td><td>${fmt(t.sf)} sf</td><td>${fmt(t.vol)}</td></tr>
-    <tr class="tot"><td>CFM50 ${esc(j.cfm||'-')}</td><td>ACH50</td><td>${t.ach==null?'–':t.ach.toFixed(2)}</td></tr></table></div>`;
+    <tr class="tot"><td>CFM50 ${esc(j.cfm||'-')} (as read)</td><td>ACH50, uncorrected</td><td>${t.ach==null?'–':t.ach.toFixed(2)}</td></tr>`;
+    if(t.c)html+=`<tr class="tot"><td>Corrected CFM50</td><td>+10%: ${fmt(t.c.cfm10)}</td><td>${fmt(t.c.cfm)}</td></tr>
+    <tr class="tot"><td>Corrected ACH50</td><td>+10%: ${t.achc10==null?'–':t.achc10.toFixed(1)}</td><td>${t.achc==null?'–':t.achc.toFixed(1)}</td></tr>
+    <tr class="tot"><td>ELA (in²)</td><td></td><td>${t.c.ela.toFixed(1)}</td></tr>`;
+    html+='</table></div>';
   });
   body.innerHTML=html;
 }
@@ -403,7 +488,13 @@ function summaryText(j){
   L.push(`O/T ${j.ot||'-'}  I/T ${j.it||'-'}  Elev ${j.elev||'-'}  Baseline ${j.baseline.filter(Boolean).join(', ')||'-'}`);
   jobLines(j).forEach(r=>L.push(`${r[0]}: ${r[1]} = ${r[2]<0?'-':''}${fmt(Math.abs(r[2]))}`));
   L.push(`Total SF ${fmt(t.sf)}  Volume ${fmt(t.vol)}`);
-  L.push(`CFM50 ${j.cfm||'-'}  ACH50 ${t.ach==null?'-':t.ach.toFixed(2)}`);
+  L.push(`Test: ${(j.method||'depress')==='press'?'Pressurization':'Depressurization'}, single point  Baseline P ${j.base||'-'} Pa  n 0.61`);
+  L.push(`CFM50 as read ${j.cfm||'-'}  ACH50 uncorrected ${t.ach==null?'-':t.ach.toFixed(2)}`);
+  if(t.c){
+    L.push(`Corrected CFM50 ${fmt(t.c.cfm)}  (+10%: ${fmt(t.c.cfm10)})`);
+    L.push(`Corrected ACH50 ${t.achc==null?'-':t.achc.toFixed(1)}  (+10%: ${t.achc10==null?'-':t.achc10.toFixed(1)})`);
+    L.push(`ELA ${t.c.ela.toFixed(1)} in2`);
+  }
   return L.join('\n');
 }
 function download(name,text,type){
@@ -426,9 +517,9 @@ $('#repCopy').onclick=async()=>{
   try{await navigator.clipboard.writeText(txt);toast('Copied')}catch(e){prompt('Copy this:',txt)}
 };
 $('#repCsv').onclick=()=>{
-  const rows=[['Date','Address','Template','Permit','O/T','I/T','Elev ft','Baseline','Total SF','Volume cu ft','CFM50','ACH50']];
+  const rows=[['Date','Address','Template','Permit','O/T','I/T','Elev ft','Test method','Baseline readings','Baseline P','Total SF','Volume cu ft','CFM50 as read','ACH50 uncorrected','Corrected CFM50','Corrected CFM50 +10%','ELA in2','Corrected ACH50','Corrected ACH50 +10%']];
   repJobs().forEach(j=>{const t=totals(j);
-    rows.push([j.date,j.address,j.template,j.permit,j.ot,j.it,j.elev,j.baseline.filter(Boolean).join(' / '),Math.round(t.sf),t.vol,j.cfm,t.ach==null?'':t.ach.toFixed(2)])});
+    rows.push([j.date,j.address,j.template,j.permit,j.ot,j.it,j.elev,(j.method||'depress')==='press'?'Pressurization':'Depressurization',j.baseline.filter(Boolean).join(' / '),j.base||'',Math.round(t.sf),t.vol,j.cfm,t.ach==null?'':t.ach.toFixed(2),t.c?Math.round(t.c.cfm):'',t.c?Math.round(t.c.cfm10):'',t.c?t.c.ela.toFixed(1):'',t.achc==null?'':t.achc.toFixed(1),t.achc10==null?'':t.achc10.toFixed(1)])});
   download(`blower-door-${$('#repFrom').value||'all'}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\r\n'),'text/csv');
 };
 $('#repBackup').onclick=()=>download(`blower-door-backup-${today()}.json`,JSON.stringify(db),'application/json');
@@ -449,6 +540,7 @@ $('#repFile').onchange=e=>{
 };
 
 if('serviceWorker' in navigator&&location.protocol!=='file:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+document.querySelectorAll('[data-signed]').forEach(addSign);
 renderAll();
 })();
 </script>
